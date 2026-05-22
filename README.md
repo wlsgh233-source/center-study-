@@ -1,4 +1,0 @@
-streamlit
-pymupdf
-pillow
-streamlit-cropper
