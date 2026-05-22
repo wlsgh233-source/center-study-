@@ -12,7 +12,7 @@ import gdown
 PDF_LINKS = {
     "4_1_수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",  # 선생님이 주신 4학년 수학 파일 ID
     "6_1_수학": "여기에_6학년_1학기_수학_구글드라이브_ID를_넣으세요",
-    "6_2_수학": "여기에_6학년_2학기_수학_구글드라이브_ID를_넣으세요",
+    "6_2_수학": "11llBJBHbszhvgb7wxB2WANYkNMGaOgYK",
     # 다른 학년/학기가 추가되면 아래에 똑같은 방식으로 줄줄이 추가하시면 됩니다!
 }
 
