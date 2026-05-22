@@ -10,6 +10,7 @@ import gdown
 # 구글 드라이브 파일 ID 사전 등록 구역
 PDF_LINKS = {
     "4학년 수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",
+    "6학년 2학기 수학": "https://drive.google.com/file/d/11llBJBHbszhvgb7wxB2WANYkNMGaOgYK/view?usp=sharing",
 }
 
 try:
