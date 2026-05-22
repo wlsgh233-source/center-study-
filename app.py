@@ -9,7 +9,7 @@ import gdown  # 🌟 구글 드라이브 파일 다운로드 도구
 
 # 🌟 구글 드라이브 파일 ID 사전 등록 구역
 # 나중에 다른 학년/과목 문제집이 추가되면 이 아래에 형식에 맞춰 한 줄씩 추가하시면 됩니다!
-PDF_LINKS = {
+PDF_LINKS = {ㄴ
     "4학년 수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",
     # 예시: "5학년 국어": "구글드라이브_파일_ID",
 }
@@ -311,11 +311,10 @@ if menu == "✍️ 학생 문제 풀기":
                                     st.session_state['wrong_list'].append(q)
                             
                             score = int((correct_count / valid_problem_count) * 100) if valid_problem_count > 0 else 100
-                            
-                            logs = load_data(LOG_FILE)
+logs = load_data(LOG_FILE)
                             if not isinstance(logs, list): 
                                 logs = []
-logs.append({
+                            logs.append({
                                 "날짜": datetime.now().strftime("%Y-%m-%d"),
                                 "시간": datetime.now().strftime("%H:%M"),
                                 "이름": student_name,
