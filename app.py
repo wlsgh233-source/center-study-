@@ -5,6 +5,14 @@ import fitz  # PyMuPDF
 from datetime import datetime
 import io  # 🌟 하드디스크 충돌 방지용 메모리 도구
 from PIL import Image
+import gdown  # 🌟 구글 드라이브 파일 다운로드 도구
+
+# 🌟 구글 드라이브 파일 ID 사전 등록 구역
+# 나중에 다른 학년/과목 문제집이 추가되면 이 아래에 형식에 맞춰 한 줄씩 추가하시면 됩니다!
+PDF_LINKS = {
+    "4학년 수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",
+    # 예시: "5학년 국어": "구글드라이브_파일_ID",
+}
 
 try:
     from streamlit_cropper import st_cropper
@@ -16,8 +24,23 @@ LOG_FILE = "study_log.json"
 PROGRESS_FILE = "student_progress.json"  
 QUESTION_DIR = "questions"
 
-# (더 이상 사진을 하드에 저장하지 않으므로 IMAGE_DIR 관련 저장은 삭제/무시됩니다)
-if not os.path.exists(QUESTION_DIR): os.makedirs(QUESTION_DIR)
+if not os.path.exists(QUESTION_DIR): 
+    os.makedirs(QUESTION_DIR)
+
+# 🌟 구글 드라이브에서 PDF를 안전하게 다운로드하는 함수
+def download_pdf_from_drive(pdf_key):
+    pdf_file_path = f"{pdf_key}.pdf"
+    if not os.path.exists(pdf_file_path):
+        if pdf_key in PDF_LINKS:
+            with st.spinner(f"☁️ {pdf_key} 문제집을 구글 드라이브에서 가져오는 중입니다... (최초 1회만)"):
+                url = f'https://drive.google.com/uc?id={PDF_LINKS[pdf_key]}'
+                try:
+                    gdown.download(url, pdf_file_path, quiet=False)
+                except Exception as e:
+                    st.error(f"❌ 구글 드라이브에서 파일을 가져오지 못했습니다: {e}")
+        else:
+            st.error(f"⚠️ '{pdf_key}.pdf' 파일이 서버에 없고, 구글 드라이브 ID가 등록되지 않았습니다.")
+    return pdf_file_path
 
 def load_data(file_path):
     if os.path.exists(file_path):
@@ -30,7 +53,8 @@ def save_data(file_path, data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def is_correct(user_ans, correct_ans):
-    if not user_ans: return False
+    if not user_ans: 
+        return False
     
     def clean(s):
         s = str(s).strip().lower()
@@ -41,18 +65,22 @@ def is_correct(user_ans, correct_ans):
     u_list = [clean(x) for x in str(user_ans).split("|") if clean(x)]
     c_list = [clean(x) for x in str(correct_ans).split("|") if clean(x)]
     
-    if len(u_list) != len(c_list): return False
+    if len(u_list) != len(c_list): 
+        return False
     return sorted(u_list) == sorted(c_list)
 
 def reset_feedback():
-    if 'show_results' in st.session_state: st.session_state['show_results'] = False
-    if 'show_score_board' in st.session_state: st.session_state['show_score_board'] = False
+    if 'show_results' in st.session_state: 
+        st.session_state['show_results'] = False
+    if 'show_score_board' in st.session_state: 
+        st.session_state['show_score_board'] = False
 
-# 🌟 핵심 수정: 하드디스크에 저장하지 않고 메모리(Bytes)에서 바로 그림을 반환합니다!
 def extract_cropped_page(pdf_path, page_num, crop_range, q_id):
-    if not os.path.exists(pdf_path): return None
+    if not os.path.exists(pdf_path): 
+        return None
     doc = fitz.open(pdf_path)
-    if page_num >= len(doc): return None
+    if page_num >= len(doc): 
+        return None
     page = doc[page_num]
     
     zoom = 3.0
@@ -68,7 +96,7 @@ def extract_cropped_page(pdf_path, page_num, crop_range, q_id):
     )
     
     pix = page.get_pixmap(matrix=mat, clip=crop_rect)
-    return pix.tobytes("png")  # 파일 경로 대신 이미지 데이터를 직접 넘깁니다!
+    return pix.tobytes("png")
 
 def get_full_page_image(pdf_path, page_num):
     doc = fitz.open(pdf_path)
@@ -77,8 +105,10 @@ def get_full_page_image(pdf_path, page_num):
     img_data = pix.tobytes("png")
     return Image.open(io.BytesIO(img_data))
 
-if 'combo' not in st.session_state: st.session_state['combo'] = 0
-if 'wrong_list' not in st.session_state: st.session_state['wrong_list'] = []
+if 'combo' not in st.session_state: 
+    st.session_state['combo'] = 0
+if 'wrong_list' not in st.session_state: 
+    st.session_state['wrong_list'] = []
 
 st.set_page_config(page_title="지역아동센터 학습관리", layout="centered")
 menu = st.sidebar.selectbox("메뉴 선택", ["✍️ 학생 문제 풀기", "🛠️ [선생님 전용] 그림 자르기 조절기", "🔒 관리자 대시보드"])
@@ -134,10 +164,10 @@ if menu == "✍️ 학생 문제 풀기":
         
         col1, col2, col3 = st.columns(3)
         with col1: selected_year = st.selectbox("년도 선택", [2026, 2027, 2028])
-        with col2: selected_grade = st.selectbox("학년 선택", [1, 2, 3, 4, 5, 6])
+        with col2: selected_grade = st.selectbox("학년 선택", [1, 2, 3, 4, 5, 6], index=3)
         with col3: selected_semester = st.selectbox("학기 선택", [1, 2])
             
-        selected_subject = st.selectbox("과목 선택", ["국어", "수학", "사회", "과학", "영어"])
+        selected_subject = st.selectbox("과목 선택", ["국어", "수학", "사회", "과학", "영어"], index=1)
         subject_key = f"{selected_grade}_{selected_semester}_{selected_subject}"
         question_filename = os.path.join(QUESTION_DIR, f"{subject_key}.json")
         
@@ -167,9 +197,11 @@ if menu == "✍️ 학생 문제 풀기":
                     st.session_state['wrong_list'] = []
 
         if st.session_state.get('exam_started'):
-            pdf_file_path = f"{selected_grade}학년 {selected_subject}.pdf"
-            all_remaining = st.session_state['all_remaining_questions']
+            # 🌟 구글 드라이브 연동 핵심 적용 스팟
+            pdf_key = f"{selected_grade}학년 {selected_subject}"
+            pdf_file_path = download_pdf_from_drive(pdf_key)
             
+            all_remaining = st.session_state['all_remaining_questions']
             available_pages = sorted(list(set([q['page'] for q in all_remaining])))
             
             if not available_pages:
@@ -192,7 +224,8 @@ if menu == "✍️ 학생 문제 풀기":
                     with st.expander(f"💡 {selected_page}쪽 문제 풀다가 헷갈리면 여기를 누르세요! [핵심 개념]", expanded=False):
                         for cq in concept_qs:
                             c_img_data = extract_cropped_page(pdf_file_path, cq["page"], cq.get("crop", [0,100,0,100]), cq["id"])
-                            if c_img_data: st.image(c_img_data, caption=cq.get('question', "핵심 개념 설명"))
+                            if c_img_data: 
+                                st.image(c_img_data, caption=cq.get('question', "핵심 개념 설명"))
                     st.markdown("---")
 
                 current_answered_ids = []
@@ -215,7 +248,8 @@ if menu == "✍️ 학생 문제 풀기":
                     if "page" in q:
                         crop_range = q.get("crop", [0, 100, 0, 100])
                         img_data = extract_cropped_page(pdf_file_path, q["page"], crop_range, q["id"])
-                        if img_data: st.image(img_data)
+                        if img_data: 
+                            st.image(img_data)
                     
                     if q.get('type') == 'blank':
                         num_ans = q.get('num_ans', 1)
@@ -279,7 +313,8 @@ if menu == "✍️ 학생 문제 풀기":
                             score = int((correct_count / valid_problem_count) * 100) if valid_problem_count > 0 else 100
                             
                             logs = load_data(LOG_FILE)
-                            if not isinstance(logs, list): logs = []
+                            if not isinstance(logs, list): 
+                                logs = []
                             logs.append({
                                 "날짜": datetime.now().strftime("%Y-%m-%d"),
                                 "시간": datetime.now().strftime("%H:%M"),
@@ -301,8 +336,10 @@ if menu == "✍️ 학생 문제 풀기":
                                 st.rerun()
                             else:
                                 progress_data = load_data(PROGRESS_FILE)
-                                if not isinstance(progress_data, dict): progress_data = {}
-                                if student_name not in progress_data: progress_data[student_name] = {}
+                                if not isinstance(progress_data, dict): 
+                                    progress_data = {}
+                                if student_name not in progress_data: 
+                                    progress_data[student_name] = {}
                                 
                                 current_max = progress_data[student_name].get(st.session_state['subject_key'], 0)
                                 progress_data[student_name][st.session_state['subject_key']] = max(current_max, max_ans_id)
@@ -321,9 +358,11 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
     
     temp_grade = 4
     temp_subject = "수학"
-    pdf_file_path = f"{temp_grade}학년 {temp_subject}.pdf"
+    temp_pdf_key = f"{temp_grade}학년 {temp_subject}"
+    pdf_file_path = download_pdf_from_drive(temp_pdf_key)
     
-    if not os.path.exists(pdf_file_path): st.error("PDF 파일이 없습니다.")
+    if not os.path.exists(pdf_file_path): 
+        st.error("기본 PDF 파일이 구글 드라이브에서 확보되지 않았습니다.")
     else:
         doc = fitz.open(pdf_file_path)
         total_pages = len(doc)
@@ -332,10 +371,14 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
         with edit_col2: test_subject = st.selectbox("과목", ["국어", "수학", "사회", "과학", "영어"], index=1)
         with edit_col3: test_page = st.number_input(f"현재 켜져있는 PDF 페이지 번호", min_value=0, max_value=total_pages-1, value=5)
             
-        pdf_file_path = f"{test_grade}학년 {test_subject}.pdf"
+        # 🌟 선택 장치 조작 시 동적 다운로드 및 경로 갱신
+        test_pdf_key = f"{test_grade}학년 {test_subject}"
+        pdf_file_path = download_pdf_from_drive(test_pdf_key)
+        
         question_filename = os.path.join(QUESTION_DIR, f"{test_grade}_{1}_{test_subject}.json")
         questions_list = load_data(question_filename)
-        if not isinstance(questions_list, list): questions_list = []
+        if not isinstance(questions_list, list): 
+            questions_list = []
         
         saved_ids = [q['id'] for q in questions_list if q['id'] != 0]
         if saved_ids:
@@ -390,7 +433,8 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
         st.markdown("---")
         
         if work_mode == "🖱️ 그림판 마우스 드래그 모드":
-            if not HAS_CROPPER: st.error("도구가 설치되지 않았습니다.")
+            if not HAS_CROPPER: 
+                st.error("도구가 설치되지 않았습니다.")
             else:
                 img = get_full_page_image(pdf_file_path, test_page)
                 cropped_img, box = st_cropper(img, realtime_update=True, box_color='#FF0000', return_type='both')
@@ -421,8 +465,12 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                     st.success(f"🎉 성공! 문제 정보가 완벽하게 저장되었습니다!")
         else:
             col_y, col_x = st.columns(2)
-            with col_y: live_top = st.number_input("위쪽 자르기", value=5); live_bottom = st.number_input("아래쪽 자르기", value=35)
-            with col_x: live_left = st.number_input("왼쪽 자르기", value=0); live_right = st.number_input("오른쪽 자르기", value=50)
+            with col_y: 
+                live_top = st.number_input("위쪽 자르기", value=5)
+                live_bottom = st.number_input("아래쪽 자르기", value=35)
+            with col_x: 
+                live_left = st.number_input("왼쪽 자르기", value=0)
+                live_right = st.number_input("오른쪽 자르기", value=50)
             final_crop = [live_top, live_bottom, live_left, live_right]
             
             if st.button(f"💾 슬라이더 수치와 정보를 저장하기", type="primary"):
@@ -446,17 +494,21 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                 st.success(f"🎉 성공! 문제 정보가 완벽하게 저장되었습니다!")
             
             img_data = extract_cropped_page(pdf_file_path, test_page, final_crop, "test_live")
-            if img_data: st.image(img_data)
+            if img_data: 
+                st.image(img_data)
 
 elif menu == "🔒 관리자 대시보드":
     st.title("🔒 센터 관리자 대시보드")
     if st.text_input("비밀번호:", type="password") == "0094":
         st.markdown("### 🏆 전체 아동 종합 점수판")
         logs = load_data(LOG_FILE)
-        if isinstance(logs, list) and len(logs) > 0: st.dataframe(logs[::-1], use_container_width=True)
-        else: st.info("ℹ️ 기록이 없습니다.")
+        if isinstance(logs, list) and len(logs) > 0: 
+            st.dataframe(logs[::-1], use_container_width=True)
+        else: 
+            st.info("ℹ️ 기록이 없습니다.")
         
         st.markdown("---")
         st.subheader("📋 아동별 최종 현재 진도 현황")
         progress = load_data(PROGRESS_FILE)
-        if isinstance(progress, dict): st.json(progress)
+        if isinstance(progress, dict): 
+            st.json(progress)
