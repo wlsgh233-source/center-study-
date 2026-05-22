@@ -316,13 +316,13 @@ if menu == "✍️ 학생 문제 풀기":
                             if not isinstance(logs, list): 
                                 logs = []
 logs.append({
-    "날짜": datetime.now().strftime("%Y-%m-%d"),
-    "시간": datetime.now().strftime("%H:%M"),
-    "이름": student_name,
-    "과목": selected_subject,
-    "학습 페이지": f"{selected_page}쪽", # 🌟 여기에 학습 페이지 항목을 추가했습니다!
-    "점수": f"{score}점"
-})
+                                "날짜": datetime.now().strftime("%Y-%m-%d"),
+                                "시간": datetime.now().strftime("%H:%M"),
+                                "이름": student_name,
+                                "과목": selected_subject,
+                                "학습 페이지": f"{selected_page}쪽",
+                                "점수": f"{score}점"
+                            })
                             save_data(LOG_FILE, logs)
                             
                             st.session_state['last_score_name'] = student_name
