@@ -3,15 +3,13 @@ import json
 import os
 import fitz  # PyMuPDF
 from datetime import datetime
-import io  # 🌟 하드디스크 충돌 방지용 메모리 도구
+import io
 from PIL import Image
-import gdown  # 🌟 구글 드라이브 파일 다운로드 도구
+import gdown
 
-# 🌟 구글 드라이브 파일 ID 사전 등록 구역
-# 나중에 다른 학년/과목 문제집이 추가되면 이 아래에 형식에 맞춰 한 줄씩 추가하시면 됩니다!
-PDF_LINKS = {ㄴ
+# 구글 드라이브 파일 ID 사전 등록 구역
+PDF_LINKS = {
     "4학년 수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",
-    # 예시: "5학년 국어": "구글드라이브_파일_ID",
 }
 
 try:
@@ -27,7 +25,6 @@ QUESTION_DIR = "questions"
 if not os.path.exists(QUESTION_DIR): 
     os.makedirs(QUESTION_DIR)
 
-# 🌟 구글 드라이브에서 PDF를 안전하게 다운로드하는 함수
 def download_pdf_from_drive(pdf_key):
     pdf_file_path = f"{pdf_key}.pdf"
     if not os.path.exists(pdf_file_path):
@@ -197,7 +194,6 @@ if menu == "✍️ 학생 문제 풀기":
                     st.session_state['wrong_list'] = []
 
         if st.session_state.get('exam_started'):
-            # 🌟 구글 드라이브 연동 핵심 적용 스팟
             pdf_key = f"{selected_grade}학년 {selected_subject}"
             pdf_file_path = download_pdf_from_drive(pdf_key)
             
@@ -311,9 +307,11 @@ if menu == "✍️ 학생 문제 풀기":
                                     st.session_state['wrong_list'].append(q)
                             
                             score = int((correct_count / valid_problem_count) * 100) if valid_problem_count > 0 else 100
-logs = load_data(LOG_FILE)
+                            
+                            logs = load_data(LOG_FILE)
                             if not isinstance(logs, list): 
                                 logs = []
+                            
                             logs.append({
                                 "날짜": datetime.now().strftime("%Y-%m-%d"),
                                 "시간": datetime.now().strftime("%H:%M"),
@@ -371,7 +369,6 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
         with edit_col2: test_subject = st.selectbox("과목", ["국어", "수학", "사회", "과학", "영어"], index=1)
         with edit_col3: test_page = st.number_input(f"현재 켜져있는 PDF 페이지 번호", min_value=0, max_value=total_pages-1, value=5)
             
-        # 🌟 선택 장치 조작 시 동적 다운로드 및 경로 갱신
         test_pdf_key = f"{test_grade}학년 {test_subject}"
         pdf_file_path = download_pdf_from_drive(test_pdf_key)
         
