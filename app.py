@@ -7,13 +7,11 @@ import io
 from PIL import Image
 import gdown
 
-# 🌟 [중요] 구글 드라이브 파일 ID 사전 등록 구역
-# 학년_학기_과목 형식으로 매칭되도록 구조를 완전히 일치시켰습니다.
+# 🌟 구글 드라이브 파일 ID 사전 등록 구역
 PDF_LINKS = {
-    "4_1_수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",  # 선생님이 주신 4학년 수학 파일 ID
+    "4_1_수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",  
     "6_1_수학": "여기에_6학년_1학기_수학_구글드라이브_ID를_넣으세요",
-    "6_2_수학": "11llBJBHbszhvgb7wxB2WANYkNMGaOgYK",
-    # 다른 학년/학기가 추가되면 아래에 똑같은 방식으로 줄줄이 추가하시면 됩니다!
+    "6_2_수학": "여기에_6학년_2학기_수학_구글드라이브_ID를_넣으세요",
 }
 
 try:
@@ -29,7 +27,6 @@ QUESTION_DIR = "questions"
 if not os.path.exists(QUESTION_DIR): 
     os.makedirs(QUESTION_DIR)
 
-# 구글 드라이브에서 PDF를 안전하게 다운로드하는 함수
 def download_pdf_from_drive(pdf_key):
     pdf_file_path = f"{pdf_key}.pdf"
     if not os.path.exists(pdf_file_path):
@@ -56,22 +53,33 @@ def save_data(file_path, data):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-def is_correct(user_ans, correct_ans):
+# 🌟 [개선] 서술형 키워드 채점 방식 추가
+def is_correct(user_ans, correct_ans, match_type="exact"):
     if not user_ans: 
         return False
     
     def clean(s):
         s = str(s).strip().lower()
-        for char in [".", "?", "!", ",", "°", " "]:
+        for char in [".", "?", "!", ",", "°", " ", "\n"]:
             s = s.replace(char, "")
         return s
         
-    u_list = [clean(x) for x in str(user_ans).split("|") if clean(x)]
-    c_list = [clean(x) for x in str(correct_ans).split("|") if clean(x)]
-    
-    if len(u_list) != len(c_list): 
+    if match_type == "keyword":
+        # 키워드 채점: 선생님이 입력한 쉼표(,)나 빗금(/) 단어 중 하나라도 포함되면 정답!
+        keywords = [clean(k) for k in correct_ans.replace("/", ",").split(",") if clean(k)]
+        cleaned_user = clean(user_ans)
+        for kw in keywords:
+            if kw in cleaned_user:
+                return True
         return False
-    return sorted(u_list) == sorted(c_list)
+    else:
+        # 기존 수학/객관식용 정확한 일치 채점
+        u_list = [clean(x) for x in str(user_ans).split("|") if clean(x)]
+        c_list = [clean(x) for x in str(correct_ans).split("|") if clean(x)]
+        
+        if len(u_list) != len(c_list): 
+            return False
+        return sorted(u_list) == sorted(c_list)
 
 def reset_feedback():
     if 'show_results' in st.session_state: 
@@ -123,7 +131,20 @@ if menu == "✍️ 학생 문제 풀기":
     if st.session_state['combo'] > 0:
         st.markdown(f"<div style='text-align: right; color: #ff9800; font-weight: bold; font-size: 20px;'>🔥 현재 {st.session_state['combo']} 콤보 달성 중!</div>", unsafe_allow_html=True)
     
-    student_name = st.text_input("너의 이름을 입력해줘", "").strip()
+    # 🌟 [개선] 확실하게 버튼을 눌러야 입장하도록 변경
+    with st.form("student_login_form"):
+        col_a, col_b = st.columns([4, 1])
+        with col_a:
+            temp_name = st.text_input("너의 이름을 입력해줘", "").strip()
+        with col_b:
+            st.write("") 
+            st.write("") 
+            submit_login = st.form_submit_button("확인 (입장)")
+            
+    if submit_login and temp_name:
+        st.session_state['student_name'] = temp_name
+        
+    student_name = st.session_state.get('student_name', "")
     
     if student_name:
         st.success(f"🎒 확인 완료! {student_name} 어린이, 오늘도 화이팅!")
@@ -273,7 +294,8 @@ if menu == "✍️ 학생 문제 풀기":
                                 st.warning("⏭️ 선생님 권한으로 건너뛰었습니다. (정답 처리됨)")
                             else:
                                 ans = user_answers.get(q['id'])
-                                if is_correct(ans, q.get('answer', '')):
+                                q_match_type = q.get('match_type', 'exact') # 🌟 [적용] 저장된 채점 방식 불러오기
+                                if is_correct(ans, q.get('answer', ''), q_match_type):
                                     st.success("⭕ 정답입니다!")
                                 elif not ans.replace("|", "").strip():
                                     st.error("❌ 문제를 풀지 않았습니다! 정답을 입력해 주세요.")
@@ -305,7 +327,8 @@ if menu == "✍️ 학생 문제 풀기":
                                         
                                     valid_problem_count += 1
                                     ans = user_answers.get(q['id'])
-                                    if is_correct(ans, q.get('answer', '')): 
+                                    q_match_type = q.get('match_type', 'exact')
+                                    if is_correct(ans, q.get('answer', ''), q_match_type): 
                                         correct_count += 1
                                         st.session_state['combo'] += 1
                                     else: 
@@ -315,7 +338,6 @@ if menu == "✍️ 학생 문제 풀기":
                                 
                                 score = int((correct_count / valid_problem_count) * 100) if valid_problem_count > 0 else 100
                                 
-                                # 🌟 대시보드 줄맞춤 및 학습 페이지 추가 완료 구역
                                 logs = load_data(LOG_FILE)
                                 if not isinstance(logs, list): 
                                     logs = []
@@ -359,93 +381,138 @@ if menu == "✍️ 학생 문제 풀기":
 
 elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
     st.title("✂️ 문제집 자르기 도구")
-    work_mode = st.radio("어떤 방식으로 자르시겠습니까?", ["🎛️ 슬라이더 조절 (기존 안전모드)", "🖱️ 그림판 마우스 드래그 모드"])
     
-    edit_col1, edit_col2, edit_col3 = st.columns(3)
-    with edit_col1: test_grade = st.selectbox("학년", [1, 2, 3, 4, 5, 6], index=3)
-    with edit_col2: test_semester = st.selectbox("학기", [1, 2], index=0)
-    with edit_col3: test_subject = st.selectbox("과목", ["국어", "수학", "사회", "과학", "영어"], index=1)
-        
-    test_pdf_key = f"{test_grade}_{test_semester}_{test_subject}"
-    pdf_file_path = download_pdf_from_drive(test_pdf_key)
-    
-    if not pdf_file_path or not os.path.exists(pdf_file_path): 
-        st.error(f"⚠️ 구글 드라이브 ID 사전에 '{test_pdf_key}' 정보가 등록되지 않았거나 다운로드에 실패했습니다.")
+    # 🌟 [개선] 선생님 메뉴 철통 보안 추가
+    if st.text_input("선생님 비밀번호를 입력하세요:", type="password", key="teacher_auth") != "0094":
+        st.warning("🔒 관리자(선생님)만 접근할 수 있는 메뉴입니다.")
     else:
-        doc = fitz.open(pdf_file_path)
-        total_pages = len(doc)
-        test_page = st.number_input(f"현재 켜져있는 PDF 페이지 번호 (총 {total_pages}페이지)", min_value=0, max_value=total_pages-1, value=0)
+        work_mode = st.radio("어떤 방식으로 자르시겠습니까?", ["🎛️ 슬라이더 조절 (기존 안전모드)", "🖱️ 그림판 마우스 드래그 모드"])
         
-        question_filename = os.path.join(QUESTION_DIR, f"{test_pdf_key}.json")
-        questions_list = load_data(question_filename)
-        if not isinstance(questions_list, list): 
-            questions_list = []
+        edit_col1, edit_col2, edit_col3 = st.columns(3)
+        with edit_col1: test_grade = st.selectbox("학년", [1, 2, 3, 4, 5, 6], index=3)
+        with edit_col2: test_semester = st.selectbox("학기", [1, 2], index=0)
+        with edit_col3: test_subject = st.selectbox("과목", ["국어", "수학", "사회", "과학", "영어"], index=1)
+            
+        test_pdf_key = f"{test_grade}_{test_semester}_{test_subject}"
+        pdf_file_path = download_pdf_from_drive(test_pdf_key)
         
-        saved_ids = [q['id'] for q in questions_list if q['id'] != 0]
-        if saved_ids:
-            st.info(f"💡 현재 과목 저장된 가장 마지막 번호(ID): {max(saved_ids)}")
+        if not pdf_file_path or not os.path.exists(pdf_file_path): 
+            st.error(f"⚠️ 구글 드라이브 ID 사전에 '{test_pdf_key}' 정보가 등록되지 않았거나 다운로드에 실패했습니다.")
         else:
-            st.info("💡 아직 저장된 문제가 없습니다.")
+            doc = fitz.open(pdf_file_path)
+            total_pages = len(doc)
+            test_page = st.number_input(f"현재 켜져있는 PDF 페이지 번호 (총 {total_pages}페이지)", min_value=0, max_value=total_pages-1, value=0)
+            
+            question_filename = os.path.join(QUESTION_DIR, f"{test_pdf_key}.json")
+            questions_list = load_data(question_filename)
+            if not isinstance(questions_list, list): 
+                questions_list = []
+            
+            saved_ids = [q['id'] for q in questions_list if q['id'] != 0]
+            if saved_ids:
+                st.info(f"💡 현재 과목 저장된 가장 마지막 번호(ID): {max(saved_ids)}")
+            else:
+                st.info("💡 아직 저장된 문제가 없습니다.")
 
-        st.markdown("### 🎛️ 1. 문제 정보 설정 (외울 필요 0%)")
-        col_type, col_num = st.columns(2)
-        with col_type:
-            q_type_kor = st.radio("이 영역은 무엇인가요?", ["📝 일반 문제", "💡 핵심 개념칸"])
-        with col_num:
-            if q_type_kor == "📝 일반 문제":
-                q_num_on_page = st.number_input("이 페이지의 몇 번 문제인가요?", min_value=1, max_value=50, value=1)
-            else:
-                q_num_on_page = 0
-                st.info("개념칸은 문제 번호가 필요 없습니다.")
-                
-        target_id = (test_page * 100) + q_num_on_page
-        target_type = "concept" if q_type_kor == "💡 핵심 개념칸" else "blank"
-        
-        existing_q = next((q for q in questions_list if q['id'] == target_id), None)
-        
-        if q_type_kor == "💡 핵심 개념칸":
-            default_title = existing_q['question'] if existing_q else f"{test_page}쪽 핵심 개념"
-        else:
-            default_title = existing_q['question'] if existing_q else f"{test_page}쪽 {q_num_on_page}번"
-            
-        default_ans = existing_q.get('answer', '') if existing_q else ""
-        
-        st.markdown("### 🏷️ 2. 정답 및 표시될 이름 입력")
-        custom_title = st.text_input("📚 학생 화면에 보여질 이름", value=default_title)
-        
-        if target_type != "concept":
-            st.markdown("---")
-            num_ans = st.number_input("정답 칸 개수 (학생에게 보여줄 빈칸 수)", min_value=1, max_value=4, value=existing_q.get('num_ans', 1) if existing_q else 1)
-            
-            ans_cols = st.columns(num_ans)
-            custom_answers_list = []
-            exist_ans_parts = default_ans.split("|") if default_ans else []
-            
-            for i in range(num_ans):
-                with ans_cols[i]:
-                    def_val = exist_ans_parts[i] if i < len(exist_ans_parts) else ""
-                    custom_answers_list.append(st.text_input(f"🔑 정답 {i+1}", value=def_val))
+            st.markdown("### 🎛️ 1. 문제 정보 설정 (외울 필요 0%)")
+            col_type, col_num = st.columns(2)
+            with col_type:
+                q_type_kor = st.radio("이 영역은 무엇인가요?", ["📝 일반 문제", "💡 핵심 개념칸"])
+            with col_num:
+                if q_type_kor == "📝 일반 문제":
+                    q_num_on_page = st.number_input("이 페이지의 몇 번 문제인가요?", min_value=1, max_value=50, value=1)
+                else:
+                    q_num_on_page = 0
+                    st.info("개념칸은 문제 번호가 필요 없습니다.")
                     
-            custom_answer = "|".join(custom_answers_list)
-        else:
-            num_ans = 1
-            custom_answer = ""
-                
-        st.markdown("---")
-        
-        if work_mode == "🖱️ 그림판 마우스 드래그 모드":
-            if not HAS_CROPPER: 
-                st.error("도구가 설치되지 않았습니다.")
+            target_id = (test_page * 100) + q_num_on_page
+            target_type = "concept" if q_type_kor == "💡 핵심 개념칸" else "blank"
+            
+            existing_q = next((q for q in questions_list if q['id'] == target_id), None)
+            
+            if q_type_kor == "💡 핵심 개념칸":
+                default_title = existing_q['question'] if existing_q else f"{test_page}쪽 핵심 개념"
             else:
-                img = get_full_page_image(pdf_file_path, test_page)
-                cropped_img, box = st_cropper(img, realtime_update=True, box_color='#FF0000', return_type='both')
-                w, h = img.size
-                top_p, bottom_p = int((box['top'] / h) * 100), int(((box['top'] + box['height']) / h) * 100)
-                left_p, right_p = int((box['left'] / w) * 100), int(((box['left'] + box['width']) / w) * 100)
-                final_crop = [top_p, bottom_p, left_p, right_p]
-                st.image(cropped_img, caption="결과물 미리보기")
+                default_title = existing_q['question'] if existing_q else f"{test_page}쪽 {q_num_on_page}번"
                 
-                if st.button(f"💾 마우스 영역과 정보를 저장하기", type="primary"):
+            default_ans = existing_q.get('answer', '') if existing_q else ""
+            
+            st.markdown("### 🏷️ 2. 정답 및 표시될 이름 입력")
+            custom_title = st.text_input("📚 학생 화면에 보여질 이름", value=default_title)
+            
+            # 🌟 [개선] 서술형 채점 방식 설정 UI 추가
+            if target_type != "concept":
+                st.markdown("---")
+                scoring_mode = st.radio("🎯 채점 방식 선택", ["💯 정확히 일치 (수학/객관식 등)", "📝 키워드 포함 (국어 서술형 등)"])
+                match_type = "keyword" if "키워드" in scoring_mode else "exact"
+                
+                if match_type == "keyword":
+                    st.info("💡 꼭 들어가야 할 **정답 핵심 단어들을 쉼표(,)나 빗금(/)으로 구분**해서 입력하세요. (예: 8시간, 안에, 들어온사람)\n👉 학생이 적은 답에 저 중 **하나라도 포함되면 정답** 처리됩니다!")
+                    num_ans = 1
+                    custom_answer = st.text_input("🔑 정답 키워드 뭉치 입력:", value=existing_q.get('answer', '') if existing_q else "")
+                else:
+                    num_ans = st.number_input("정답 칸 개수 (학생에게 보여줄 빈칸 수)", min_value=1, max_value=4, value=existing_q.get('num_ans', 1) if existing_q else 1)
+                    
+                    ans_cols = st.columns(num_ans)
+                    custom_answers_list = []
+                    exist_ans_parts = default_ans.split("|") if default_ans else []
+                    
+                    for i in range(num_ans):
+                        with ans_cols[i]:
+                            def_val = exist_ans_parts[i] if i < len(exist_ans_parts) else ""
+                            custom_answers_list.append(st.text_input(f"🔑 정답 {i+1}", value=def_val))
+                            
+                    custom_answer = "|".join(custom_answers_list)
+            else:
+                num_ans = 1
+                custom_answer = ""
+                match_type = "exact"
+                    
+            st.markdown("---")
+            
+            if work_mode == "🖱️ 그림판 마우스 드래그 모드":
+                if not HAS_CROPPER: 
+                    st.error("도구가 설치되지 않았습니다.")
+                else:
+                    img = get_full_page_image(pdf_file_path, test_page)
+                    cropped_img, box = st_cropper(img, realtime_update=True, box_color='#FF0000', return_type='both')
+                    w, h = img.size
+                    top_p, bottom_p = int((box['top'] / h) * 100), int(((box['top'] + box['height']) / h) * 100)
+                    left_p, right_p = int((box['left'] / w) * 100), int(((box['left'] + box['width']) / w) * 100)
+                    final_crop = [top_p, bottom_p, left_p, right_p]
+                    st.image(cropped_img, caption="결과물 미리보기")
+                    
+                    if st.button(f"💾 마우스 영역과 정보를 저장하기", type="primary"):
+                        found = False
+                        for q in questions_list:
+                            if q['id'] == target_id:
+                                q['page'], q['crop'], q['type'] = test_page, final_crop, target_type
+                                q['question'] = custom_title
+                                q['answer'] = custom_answer
+                                q['num_ans'] = num_ans
+                                q['match_type'] = match_type  # 채점 방식 저장
+                                found = True
+                                break
+                        if not found:
+                            questions_list.append({
+                                "id": target_id, "type": target_type, "question": custom_title, 
+                                "page": test_page, "crop": final_crop, "answer": custom_answer, 
+                                "num_ans": num_ans, "options": [], "match_type": match_type
+                            })
+                            questions_list = sorted(questions_list, key=lambda x: x['id'])
+                        save_data(question_filename, questions_list)
+                        st.success(f"🎉 성공! 문제 정보가 완벽하게 저장되었습니다!")
+            else:
+                col_y, col_x = st.columns(2)
+                with col_y: 
+                    live_top = st.number_input("위쪽 자르기", value=5)
+                    live_bottom = st.number_input("아래쪽 자르기", value=35)
+                with col_x: 
+                    live_left = st.number_input("왼쪽 자르기", value=0)
+                    live_right = st.number_input("오른쪽 자르기", value=50)
+                final_crop = [live_top, live_bottom, live_left, live_right]
+                
+                if st.button(f"💾 슬라이더 수치와 정보를 저장하기", type="primary"):
                     found = False
                     for q in questions_list:
                         if q['id'] == target_id:
@@ -453,50 +520,22 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                             q['question'] = custom_title
                             q['answer'] = custom_answer
                             q['num_ans'] = num_ans
+                            q['match_type'] = match_type  # 채점 방식 저장
                             found = True
                             break
                     if not found:
                         questions_list.append({
                             "id": target_id, "type": target_type, "question": custom_title, 
                             "page": test_page, "crop": final_crop, "answer": custom_answer, 
-                            "num_ans": num_ans, "options": []
+                            "num_ans": num_ans, "options": [], "match_type": match_type
                         })
                         questions_list = sorted(questions_list, key=lambda x: x['id'])
                     save_data(question_filename, questions_list)
                     st.success(f"🎉 성공! 문제 정보가 완벽하게 저장되었습니다!")
-        else:
-            col_y, col_x = st.columns(2)
-            with col_y: 
-                live_top = st.number_input("위쪽 자르기", value=5)
-                live_bottom = st.number_input("아래쪽 자르기", value=35)
-            with col_x: 
-                live_left = st.number_input("왼쪽 자르기", value=0)
-                live_right = st.number_input("오른쪽 자르기", value=50)
-            final_crop = [live_top, live_bottom, live_left, live_right]
-            
-            if st.button(f"💾 슬라이더 수치와 정보를 저장하기", type="primary"):
-                found = False
-                for q in questions_list:
-                    if q['id'] == target_id:
-                        q['page'], q['crop'], q['type'] = test_page, final_crop, target_type
-                        q['question'] = custom_title
-                        q['answer'] = custom_answer
-                        q['num_ans'] = num_ans
-                        found = True
-                        break
-                if not found:
-                    questions_list.append({
-                        "id": target_id, "type": target_type, "question": custom_title, 
-                        "page": test_page, "crop": final_crop, "answer": custom_answer, 
-                        "num_ans": num_ans, "options": []
-                    })
-                    questions_list = sorted(questions_list, key=lambda x: x['id'])
-                save_data(question_filename, questions_list)
-                st.success(f"🎉 성공! 문제 정보가 완벽하게 저장되었습니다!")
-            
-            img_data = extract_cropped_page(pdf_file_path, test_page, final_crop, "test_live")
-            if img_data: 
-                st.image(img_data)
+                
+                img_data = extract_cropped_page(pdf_file_path, test_page, final_crop, "test_live")
+                if img_data: 
+                    st.image(img_data)
 
 elif menu == "🔒 관리자 대시보드":
     st.title("🔒 센터 관리자 대시보드")
