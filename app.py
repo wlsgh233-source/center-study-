@@ -10,7 +10,7 @@ import gdown
 # 💡 구글 드라이브 ID를 여기 정확히 채워주세요!
 PDF_LINKS = {
     "6_1_수학": "여기에_6학년1학기_수학_PDF_ID를_넣으세요",
-    "6_2_수학": "여기에_6학년2학기_수학_PDF_ID를_넣으세요",
+    "6_2_수학": "11llBJBHbszhvgb7wxB2WANYkNMGaOgYK",
     "4_1_수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",
 }
 
