@@ -51,7 +51,7 @@ def load_data(file_path):
             return json.load(f)
     return {} if "progress" in file_path else []
 
-# 🌟 [신규] 저장과 동시에 깃허브로 쏘아 올리는 마법의 자동화 함수!
+# 🌟 [자동 저장 & 에러 탐지 모드]
 def save_data(file_path, data):
     # 1. 평소처럼 임시 서버에 먼저 저장
     with open(file_path, "w", encoding="utf-8") as f:
@@ -68,7 +68,6 @@ def save_data(file_path, data):
                 "Accept": "application/vnd.github.v3+json"
             }
             
-            # 기존에 깃허브에 파일이 있다면 확인
             sha = None
             res = requests.get(url, headers=headers)
             if res.status_code == 200:
@@ -84,9 +83,16 @@ def save_data(file_path, data):
             if sha:
                 payload["sha"] = sha
                 
-            requests.put(url, headers=headers, json=payload)
+            put_res = requests.put(url, headers=headers, json=payload)
+            
+            # 저장에 실패하면 화면에 빨간색으로 에러 표시!
+            if put_res.status_code not in [200, 201]:
+                st.error(f"❌ 깃허브 자동 저장 실패! 원인: {put_res.text}")
+                
+        else:
+            st.error("❌ 스트림릿 Secrets 금고에 GITHUB_TOKEN이 없습니다! 세팅을 다시 확인하세요.")
     except Exception as e:
-        pass # 에러가 나더라도 앱이 멈추지 않게 보호
+        st.error(f"❌ 앱 통신 에러 발생: {e}")
 
 def is_correct(user_ans, correct_ans, match_type="exact"):
     if not user_ans: 
