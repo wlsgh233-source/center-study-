@@ -1,5 +1,5 @@
 streamlit
-pymupdf
-pillow
-streamlit-cropper
+PyMuPDF
 gdown
+streamlit-cropper
+requests
