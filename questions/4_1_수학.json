@@ -1,0 +1,114 @@
+[
+    {
+        "id": 300,
+        "type": "concept",
+        "question": "3쪽 핵심 개념",
+        "page": 3,
+        "crop": [
+            0,
+            99,
+            0,
+            99
+        ],
+        "answer": "",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "exact"
+    },
+    {
+        "id": 401,
+        "type": "blank",
+        "question": "4쪽 1번",
+        "page": 4,
+        "crop": [
+            9,
+            33,
+            6,
+            65
+        ],
+        "answer": "1|1",
+        "num_ans": 2,
+        "options": [],
+        "match_type": "exact"
+    },
+    {
+        "id": 402,
+        "type": "blank",
+        "question": "4쪽 2번",
+        "page": 4,
+        "crop": [
+            33,
+            51,
+            8,
+            66
+        ],
+        "answer": "1|1",
+        "num_ans": 2,
+        "options": [],
+        "match_type": "exact"
+    },
+    {
+        "id": 403,
+        "type": "blank",
+        "question": "4쪽 3번",
+        "page": 4,
+        "crop": [
+            54,
+            92,
+            7,
+            68
+        ],
+        "answer": "1|1|1|1",
+        "num_ans": 4,
+        "options": [],
+        "match_type": "exact"
+    },
+    {
+        "id": 501,
+        "type": "blank",
+        "question": "5쪽 1번",
+        "page": 5,
+        "crop": [
+            8,
+            31,
+            2,
+            53
+        ],
+        "answer": "1",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "exact"
+    },
+    {
+        "id": 502,
+        "type": "blank",
+        "question": "5쪽 2번",
+        "page": 5,
+        "crop": [
+            31,
+            55,
+            1,
+            52
+        ],
+        "answer": "1",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "exact"
+    },
+    {
+        "id": 503,
+        "type": "blank",
+        "question": "5쪽 3번",
+        "page": 5,
+        "crop": [
+            56,
+            76,
+            0,
+            50
+        ],
+        "answer": "1",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "exact"
+    }
+]
