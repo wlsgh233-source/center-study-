@@ -53,7 +53,6 @@ def save_data(file_path, data):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# 🌟 [개선] 서술형 키워드 채점 방식 추가
 def is_correct(user_ans, correct_ans, match_type="exact"):
     if not user_ans: 
         return False
@@ -65,7 +64,6 @@ def is_correct(user_ans, correct_ans, match_type="exact"):
         return s
         
     if match_type == "keyword":
-        # 키워드 채점: 선생님이 입력한 쉼표(,)나 빗금(/) 단어 중 하나라도 포함되면 정답!
         keywords = [clean(k) for k in correct_ans.replace("/", ",").split(",") if clean(k)]
         cleaned_user = clean(user_ans)
         for kw in keywords:
@@ -73,7 +71,6 @@ def is_correct(user_ans, correct_ans, match_type="exact"):
                 return True
         return False
     else:
-        # 기존 수학/객관식용 정확한 일치 채점
         u_list = [clean(x) for x in str(user_ans).split("|") if clean(x)]
         c_list = [clean(x) for x in str(correct_ans).split("|") if clean(x)]
         
@@ -131,7 +128,6 @@ if menu == "✍️ 학생 문제 풀기":
     if st.session_state['combo'] > 0:
         st.markdown(f"<div style='text-align: right; color: #ff9800; font-weight: bold; font-size: 20px;'>🔥 현재 {st.session_state['combo']} 콤보 달성 중!</div>", unsafe_allow_html=True)
     
-    # 🌟 [개선] 확실하게 버튼을 눌러야 입장하도록 변경
     with st.form("student_login_form"):
         col_a, col_b = st.columns([4, 1])
         with col_a:
@@ -294,7 +290,7 @@ if menu == "✍️ 학생 문제 풀기":
                                 st.warning("⏭️ 선생님 권한으로 건너뛰었습니다. (정답 처리됨)")
                             else:
                                 ans = user_answers.get(q['id'])
-                                q_match_type = q.get('match_type', 'exact') # 🌟 [적용] 저장된 채점 방식 불러오기
+                                q_match_type = q.get('match_type', 'exact')
                                 if is_correct(ans, q.get('answer', ''), q_match_type):
                                     st.success("⭕ 정답입니다!")
                                 elif not ans.replace("|", "").strip():
@@ -382,7 +378,6 @@ if menu == "✍️ 학생 문제 풀기":
 elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
     st.title("✂️ 문제집 자르기 도구")
     
-    # 🌟 [개선] 선생님 메뉴 철통 보안 추가
     if st.text_input("선생님 비밀번호를 입력하세요:", type="password", key="teacher_auth") != "0094":
         st.warning("🔒 관리자(선생님)만 접근할 수 있는 메뉴입니다.")
     else:
@@ -407,6 +402,20 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
             questions_list = load_data(question_filename)
             if not isinstance(questions_list, list): 
                 questions_list = []
+            
+            # 🌟 [신규 추가] 영구 저장을 위한 파일 다운로드 구역
+            st.markdown("---")
+            st.markdown("### 💾 영구 저장 (백업)")
+            st.info("💡 여기서 만든 문제들이 내일도 안 지워지게 하려면, 아래 버튼을 눌러 파일을 다운받은 뒤 **GitHub의 `questions` 폴더에 업로드** 하세요!")
+            
+            json_data = json.dumps(questions_list, ensure_ascii=False, indent=4)
+            st.download_button(
+                label="📥 지금 만든 문제 파일 다운로드 (영구 저장용)",
+                data=json_data,
+                file_name=f"{test_pdf_key}.json",
+                mime="application/json"
+            )
+            st.markdown("---")
             
             saved_ids = [q['id'] for q in questions_list if q['id'] != 0]
             if saved_ids:
@@ -440,7 +449,6 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
             st.markdown("### 🏷️ 2. 정답 및 표시될 이름 입력")
             custom_title = st.text_input("📚 학생 화면에 보여질 이름", value=default_title)
             
-            # 🌟 [개선] 서술형 채점 방식 설정 UI 추가
             if target_type != "concept":
                 st.markdown("---")
                 scoring_mode = st.radio("🎯 채점 방식 선택", ["💯 정확히 일치 (수학/객관식 등)", "📝 키워드 포함 (국어 서술형 등)"])
@@ -490,7 +498,7 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                                 q['question'] = custom_title
                                 q['answer'] = custom_answer
                                 q['num_ans'] = num_ans
-                                q['match_type'] = match_type  # 채점 방식 저장
+                                q['match_type'] = match_type 
                                 found = True
                                 break
                         if not found:
@@ -520,7 +528,7 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                             q['question'] = custom_title
                             q['answer'] = custom_answer
                             q['num_ans'] = num_ans
-                            q['match_type'] = match_type  # 채점 방식 저장
+                            q['match_type'] = match_type  
                             found = True
                             break
                     if not found:
@@ -552,3 +560,16 @@ elif menu == "🔒 관리자 대시보드":
         progress = load_data(PROGRESS_FILE)
         if isinstance(progress, dict): 
             st.json(progress)
+            
+        # 🌟 진도 기록 백업 기능 추가
+        st.markdown("---")
+        st.markdown("### 💾 진도 및 점수 기록 백업하기")
+        st.info("학생들의 풀이 기록이 지워지지 않도록 주기적으로 다운로드하여 GitHub에 업로드하세요.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            log_data = json.dumps(logs, ensure_ascii=False, indent=4)
+            st.download_button("📥 전체 점수판 기록 다운로드", data=log_data, file_name="study_log.json", mime="application/json")
+        with col2:
+            prog_data = json.dumps(progress, ensure_ascii=False, indent=4)
+            st.download_button("📥 아동별 진도 기록 다운로드", data=prog_data, file_name="student_progress.json", mime="application/json")
