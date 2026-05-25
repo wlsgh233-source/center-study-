@@ -29,6 +29,12 @@ QUESTION_DIR = "questions"
 if not os.path.exists(QUESTION_DIR): 
     os.makedirs(QUESTION_DIR)
 
+st.set_page_config(page_title="지역아동센터 학습관리", layout="centered")
+
+# 🚨 [핵심!] 에러 메시지가 지워지지 않게 화면 맨 위에 띄우기
+if 'sys_error' in st.session_state and st.session_state['sys_error']:
+    st.error(st.session_state['sys_error'])
+
 def download_pdf_from_drive(pdf_key):
     pdf_file_path = f"{pdf_key}.pdf"
     if not os.path.exists(pdf_file_path):
@@ -85,14 +91,16 @@ def save_data(file_path, data):
                 
             put_res = requests.put(url, headers=headers, json=payload)
             
-            # 저장에 실패하면 화면에 빨간색으로 에러 표시!
+            # 저장에 실패하면 지워지지 않는 에러 박스에 저장!
             if put_res.status_code not in [200, 201]:
-                st.error(f"❌ 깃허브 자동 저장 실패! 원인: {put_res.text}")
+                st.session_state['sys_error'] = f"❌ 깃허브 저장 실패 ({put_res.status_code}): {put_res.text}"
+            else:
+                st.session_state['sys_error'] = "" # 성공하면 에러 메시지 삭제
                 
         else:
-            st.error("❌ 스트림릿 Secrets 금고에 GITHUB_TOKEN이 없습니다! 세팅을 다시 확인하세요.")
+            st.session_state['sys_error'] = "❌ Secrets 금고에 GITHUB_TOKEN이 없습니다! 세팅을 다시 확인하세요."
     except Exception as e:
-        st.error(f"❌ 앱 통신 에러 발생: {e}")
+        st.session_state['sys_error'] = f"❌ 앱 통신 에러 발생: {e}"
 
 def is_correct(user_ans, correct_ans, match_type="exact"):
     if not user_ans: 
@@ -146,7 +154,6 @@ def get_full_page_image(pdf_path, page_num):
 if 'combo' not in st.session_state: st.session_state['combo'] = 0
 if 'wrong_list' not in st.session_state: st.session_state['wrong_list'] = []
 
-st.set_page_config(page_title="지역아동센터 학습관리", layout="centered")
 menu = st.sidebar.selectbox("메뉴 선택", ["✍️ 학생 문제 풀기", "🛠️ [선생님 전용] 그림 자르기 조절기", "🔒 관리자 대시보드"])
 
 if menu == "✍️ 학생 문제 풀기":
@@ -462,7 +469,7 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                             questions_list.append({"id": target_id, "type": target_type, "question": custom_title, "page": test_page, "crop": final_crop, "answer": custom_answer, "num_ans": num_ans, "options": [], "match_type": match_type})
                             questions_list = sorted(questions_list, key=lambda x: x['id'])
                         save_data(question_filename, questions_list)
-                        st.success(f"🎉 성공! 문제 데이터가 깃허브로 안전하게 자동 백업되었습니다!")
+                        st.success(f"🎉 성공! 문제 데이터가 저장되었습니다!")
             else:
                 col_y, col_x = st.columns(2)
                 with col_y: 
@@ -485,7 +492,7 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                         questions_list.append({"id": target_id, "type": target_type, "question": custom_title, "page": test_page, "crop": final_crop, "answer": custom_answer, "num_ans": num_ans, "options": [], "match_type": match_type})
                         questions_list = sorted(questions_list, key=lambda x: x['id'])
                     save_data(question_filename, questions_list)
-                    st.success(f"🎉 성공! 문제 데이터가 깃허브로 안전하게 자동 백업되었습니다!")
+                    st.success(f"🎉 성공! 문제 데이터가 저장되었습니다!")
                 
                 img_data = extract_cropped_page(pdf_file_path, test_page, final_crop, "test_live")
                 if img_data: st.image(img_data)
