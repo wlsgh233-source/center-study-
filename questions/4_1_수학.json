@@ -110,5 +110,21 @@
         "num_ans": 1,
         "options": [],
         "match_type": "exact"
+    },
+    {
+        "id": 701,
+        "type": "blank",
+        "question": "7쪽 1번",
+        "page": 7,
+        "crop": [
+            19,
+            79,
+            19,
+            79
+        ],
+        "answer": "1",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "exact"
     }
 ]
