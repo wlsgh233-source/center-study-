@@ -1,5 +1,21 @@
 [
     {
+        "id": 1,
+        "type": "blank",
+        "question": "0쪽 1번",
+        "page": 0,
+        "crop": [
+            19,
+            79,
+            19,
+            79
+        ],
+        "answer": "1|1|1",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "fraction"
+    },
+    {
         "id": 300,
         "type": "concept",
         "question": "3쪽 핵심 개념",
