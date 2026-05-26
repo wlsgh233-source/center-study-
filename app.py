@@ -13,7 +13,7 @@ import base64
 PDF_LINKS = {
     "4_1_수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",  
     "6_1_수학": "여기에_6학년_1학기_수학_구글드라이브_ID를_넣으세요",
-    "6_2_수학": "여기에_6학년_2학기_수학_구글드라이브_ID를_넣으세요",
+    "6_2_수학": "11llBJBHbszhvgb7wxB2WANYkNMGaOgYK",
 }
 
 try:
@@ -31,7 +31,7 @@ if not os.path.exists(QUESTION_DIR):
 
 st.set_page_config(page_title="지역아동센터 학습관리", layout="centered")
 
-# 🎨 분수 전용 시각화 CSS 추가 (선생님 요청사항)
+# 🎨 분수 전용 시각화 CSS 추가
 st.markdown("""
 <style>
     .fraction-line {
@@ -44,7 +44,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 🚨 [핵심!] 에러 메시지가 지워지지 않게 화면 맨 위에 띄우기
 if 'sys_error' in st.session_state and st.session_state['sys_error']:
     st.error(st.session_state['sys_error'])
 
@@ -52,15 +51,15 @@ def download_pdf_from_drive(pdf_key):
     pdf_file_path = f"{pdf_key}.pdf"
     if not os.path.exists(pdf_file_path):
         if pdf_key in PDF_LINKS:
-            with st.spinner(f"☁️ {pdf_key} 교재를 구글 드라이브에서 가져오는 중... (최초 1회만)"):
+            with st.spinner(f"☁️ {pdf_key} 교재를 다운로드 중입니다... (최초 1회)"):
                 url = f'https://drive.google.com/uc?id={PDF_LINKS[pdf_key]}'
                 try:
                     gdown.download(url, pdf_file_path, quiet=False)
                 except Exception as e:
-                    st.error(f"❌ 구글 드라이브에서 파일을 가져오지 못했습니다: {e}")
+                    st.error(f"❌ 다운로드 실패: {e}")
                     return None
         else:
-            st.error(f"⚠️ '{pdf_key}'의 구글 드라이브 ID가 등록되지 않았습니다.")
+            st.error(f"⚠️ '{pdf_key}'의 구글 드라이브 ID가 없습니다.")
             return None
     return pdf_file_path
 
@@ -70,82 +69,67 @@ def load_data(file_path):
             return json.load(f)
     return {} if "progress" in file_path else []
 
-# 🌟 [자동 저장 & 에러 탐지 모드]
 def save_data(file_path, data):
-    # 1. 평소처럼 임시 서버에 먼저 저장
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
         
-    # 2. 깃허브로 몰래 자동 업로드
     try:
         if "GITHUB_TOKEN" in st.secrets:
             token = st.secrets["GITHUB_TOKEN"]
             repo = "wlsgh233-source/center-study-"
             url = f"https://api.github.com/repos/{repo}/contents/{file_path}"
-            headers = {
-                "Authorization": f"token {token}",
-                "Accept": "application/vnd.github.v3+json"
-            }
+            headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
             
             sha = None
             res = requests.get(url, headers=headers)
-            if res.status_code == 200:
-                sha = res.json().get("sha")
+            if res.status_code == 200: sha = res.json().get("sha")
                 
             content_str = json.dumps(data, ensure_ascii=False, indent=4)
             encoded_content = base64.b64encode(content_str.encode('utf-8')).decode('utf-8')
             
-            payload = {
-                "message": f"🤖 자동 저장: {file_path} 업데이트",
-                "content": encoded_content
-            }
-            if sha:
-                payload["sha"] = sha
+            payload = {"message": f"🤖 자동 저장: {file_path} 업데이트", "content": encoded_content}
+            if sha: payload["sha"] = sha
                 
             put_res = requests.put(url, headers=headers, json=payload)
             
-            # 저장에 실패하면 지워지지 않는 에러 박스에 저장!
             if put_res.status_code not in [200, 201]:
-                st.session_state['sys_error'] = f"❌ 깃허브 저장 실패 ({put_res.status_code}): {put_res.text}"
+                st.session_state['sys_error'] = f"❌ 깃허브 저장 실패: {put_res.text}"
             else:
-                st.session_state['sys_error'] = "" # 성공하면 에러 메시지 삭제
+                st.session_state['sys_error'] = ""
                 
         else:
-            st.session_state['sys_error'] = "❌ Secrets 금고에 GITHUB_TOKEN이 없습니다! 세팅을 다시 확인하세요."
+            st.session_state['sys_error'] = "❌ GITHUB_TOKEN이 없습니다!"
     except Exception as e:
-        st.session_state['sys_error'] = f"❌ 앱 통신 에러 발생: {e}"
+        st.session_state['sys_error'] = f"❌ 통신 에러: {e}"
 
 def is_correct(user_ans, correct_ans, match_type="exact"):
-    if not user_ans: 
-        return False
-    
+    if not user_ans: return False
     def clean(s):
         s = str(s).strip().lower()
-        for char in [".", "?", "!", ",", "°", " ", "\n"]:
-            s = s.replace(char, "")
+        for char in [".", "?", "!", ",", "°", " ", "\n"]: s = s.replace(char, "")
         return s
         
-    # 🌟 [추가됨] 분수 전용 채점 로직
+    # 🌟 다중 분수 채점 로직
     if match_type == "fraction":
         def clean_f(s): return "0" if not s.strip() else s.strip()
-        u_parts = [clean_f(x) for x in str(user_ans).split("|")]
-        c_parts = [clean_f(x) for x in str(correct_ans).split("|")]
-        if len(u_parts) == 3 and len(c_parts) == 3:
-            return u_parts == c_parts
-        return False
+        u_sets = str(user_ans).split("||")
+        c_sets = str(correct_ans).split("||")
+        if len(u_sets) != len(c_sets): return False
+        for u, c in zip(u_sets, c_sets):
+            if [clean_f(x) for x in u.split("|")] != [clean_f(x) for x in c.split("|")]:
+                return False
+        return True
         
     if match_type == "keyword":
         keywords = [clean(k) for k in correct_ans.replace("/", ",").split(",") if clean(k)]
         cleaned_user = clean(user_ans)
         for kw in keywords:
-            if kw in cleaned_user:
-                return True
+            if kw in cleaned_user: return True
         return False
     else:
         u_list = [clean(x) for x in str(user_ans).split("|") if clean(x)]
         c_list = [clean(x) for x in str(correct_ans).split("|") if clean(x)]
-        if len(u_list) != len(c_list): 
-            return False
+        if len(u_list) != len(c_list): return False
         return sorted(u_list) == sorted(c_list)
 
 def reset_feedback():
@@ -160,12 +144,9 @@ def extract_cropped_page(pdf_path, page_num, crop_range, q_id):
     mat = fitz.Matrix(3.0, 3.0)
     top_pct, bottom_pct, left_pct, right_pct = crop_range[0], crop_range[1], crop_range[2], crop_range[3]
     rect = page.rect
-    crop_rect = fitz.Rect(
-        rect.x0 + (rect.width * (left_pct / 100.0)), rect.y0 + (rect.height * (top_pct / 100.0)), 
-        rect.x0 + (rect.width * (right_pct / 100.0)), rect.y0 + (rect.height * (bottom_pct / 100.0))
-    )
-    pix = page.get_pixmap(matrix=mat, clip=crop_rect)
-    return pix.tobytes("png")
+    crop_rect = fitz.Rect(rect.x0 + (rect.width*(left_pct/100.0)), rect.y0 + (rect.height*(top_pct/100.0)), 
+                          rect.x0 + (rect.width*(right_pct/100.0)), rect.y0 + (rect.height*(bottom_pct/100.0)))
+    return page.get_pixmap(matrix=mat, clip=crop_rect).tobytes("png")
 
 def get_full_page_image(pdf_path, page_num):
     doc = fitz.open(pdf_path)
@@ -185,12 +166,8 @@ if menu == "✍️ 학생 문제 풀기":
     
     with st.form("student_login_form"):
         col_a, col_b = st.columns([4, 1])
-        with col_a:
-            temp_name = st.text_input("너의 이름을 입력해줘", "").strip()
-        with col_b:
-            st.write("") 
-            st.write("") 
-            submit_login = st.form_submit_button("확인 (입장)")
+        with col_a: temp_name = st.text_input("너의 이름을 입력해줘", "").strip()
+        with col_b: st.write(""); st.write(""); submit_login = st.form_submit_button("확인 (입장)")
             
     if submit_login and temp_name: st.session_state['student_name'] = temp_name
     student_name = st.session_state.get('student_name', "")
@@ -205,7 +182,7 @@ if menu == "✍️ 학생 문제 풀기":
             title_text = "🏆 만점 성공! 진도 저장 완료!" if is_perfect else "📝 채점 결과 확인 (오답 고치기)"
             
             score_display = f"<h2 style='color: {border_color}; margin-top:12px; margin-bottom:0; font-weight: bold;'>시험 점수: {score_text}</h2>"
-            if not is_perfect: score_display += "<p style='color: #d32f2f; margin-top:5px; font-size:14px; font-weight:bold;'>⚠️ 틀린 문제(❌)가 있습니다! 정답을 고친 뒤 선생님께 재제출하세요.</p>"
+            if not is_perfect: score_display += "<p style='color: #d32f2f; margin-top:5px; font-size:14px; font-weight:bold;'>⚠️ 틀린 문제(❌)가 있습니다! 정답을 고친 뒤 재제출하세요.</p>"
             
             st.markdown(f"""
             <div style='background-color: {bg_color}; padding: 20px; border-radius: 10px; border-left: 5px solid {border_color}; margin-top: 15px; margin-bottom: 25px;'>
@@ -221,16 +198,16 @@ if menu == "✍️ 학생 문제 풀기":
                     wrong_text_content = f"--- {student_name} 어린이의 오답 노트 ---\n\n"
                     for w_idx, wq in enumerate(st.session_state['wrong_list']):
                         st.markdown(f"**[{w_idx+1}] {wq['question']}**")
-                        st.markdown(f"👉 정답: `{wq['answer']}`")
+                        ans_display = wq['answer'].replace("||", " 그리고 ").replace("|", " ")
+                        st.markdown(f"👉 정답: `{ans_display}`")
                         st.markdown("---")
-                        wrong_text_content += f"문제: {wq['question']}\n정답: {wq['answer']}\n\n"
-                    
+                        wrong_text_content += f"문제: {wq['question']}\n정답: {ans_display}\n\n"
                     st.download_button(label="📥 오답 노트 다운로드", data=wrong_text_content.encode('utf-8'), file_name=f"{student_name}_오답노트.txt", mime="text/plain")
             
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
-        with col1: selected_grade = st.selectbox("학년 선택", [1, 2, 3, 4, 5, 6], index=3)
-        with col2: selected_semester = st.selectbox("학기 선택", [1, 2], index=0)
+        with col1: selected_grade = st.selectbox("학년 선택", [1, 2, 3, 4, 5, 6], index=5)
+        with col2: selected_semester = st.selectbox("학기 선택", [1, 2], index=1)
         with col3: selected_subject = st.selectbox("과목 선택", ["국어", "수학", "사회", "과학", "영어"], index=1)
             
         subject_key = f"{selected_grade}_{selected_semester}_{selected_subject}"
@@ -238,8 +215,7 @@ if menu == "✍️ 학생 문제 풀기":
         
         if st.button("📝 내 진도 불러오기", type="primary"):
             questions = load_data(question_filename)
-            if not questions:
-                st.error(f"⚠️ 아직 문제가 준비되지 않았습니다.")
+            if not questions: st.error(f"⚠️ 아직 문제가 준비되지 않았습니다.")
             else:
                 progress_data = load_data(PROGRESS_FILE)
                 if not isinstance(progress_data, dict): progress_data = {}
@@ -249,8 +225,7 @@ if menu == "✍️ 학생 문제 풀기":
                 remaining_questions = [q for q in questions if q['id'] > last_solved or (q.get('type') == 'concept' and q['id'] >= (last_solved//100)*100)]
                 
                 if not remaining_questions:
-                    st.balloons()
-                    st.success("🎉 대단해요! 이 과목의 모든 문제를 다 풀었습니다!")
+                    st.balloons(); st.success("🎉 대단해요! 이 과목의 모든 문제를 다 풀었습니다!")
                 else:
                     st.session_state['all_remaining_questions'] = remaining_questions
                     st.session_state['last_solved_id'] = last_solved
@@ -290,17 +265,15 @@ if menu == "✍️ 학생 문제 풀기":
                         skipped = st.session_state.get(f"skip_{q['id']}", False)
                         answered = False
                         
-                        # 🌟 [추가됨] 학생 분수 입력 확인 로직
+                        num_a = q.get('num_ans', 1)
                         if q.get('match_type') == 'fraction':
-                            if st.session_state.get(f"q_{q['id']}_num") or st.session_state.get(f"q_{q['id']}_den"):
-                                answered = True
+                            for i in range(num_a):
+                                if st.session_state.get(f"q_{q['id']}_{i}_num") or st.session_state.get(f"q_{q['id']}_{i}_den"):
+                                    answered = True
                         else:
-                            num_a = q.get('num_ans', 1)
-                            if any(st.session_state.get(f"q_{q['id']}_{i}") for i in range(num_a)):
-                                answered = True
+                            if any(st.session_state.get(f"q_{q['id']}_{i}") for i in range(num_a)): answered = True
                                 
-                        if skipped or answered:
-                            current_answered_ids.append(q['id'])
+                        if skipped or answered: current_answered_ids.append(q['id'])
                             
                     dyn_max_answered_id = max(current_answered_ids) if current_answered_ids else None
                     user_answers = {}
@@ -311,20 +284,27 @@ if menu == "✍️ 학생 문제 풀기":
                             img_data = extract_cropped_page(pdf_file_path, q["page"], q.get("crop", [0, 100, 0, 100]), q["id"])
                             if img_data: st.image(img_data)
                         
-                        # 🌟 [추가됨] 학생 분수 입력 화면 (왼쪽:자연수, 오른쪽:분수합체)
+                        num_ans = q.get('num_ans', 1)
+                        
+                        # 🌟 [아이들용] 분수 여러 개 입력 UI 적용
                         if q.get('match_type') == 'fraction':
-                            st.caption("👉 정답을 분수 형태로 입력하세요. (진분수나 가분수는 자연수 칸을 비워두세요)")
-                            f_col1, f_col2 = st.columns([1, 2])
-                            with f_col1: 
-                                user_nat = st.text_input("🟩 자연수", key=f"q_{q['id']}_nat", placeholder="자연수 입력", on_change=reset_feedback).strip()
-                            with f_col2: 
-                                user_num = st.text_input("🟥 분자", key=f"q_{q['id']}_num", placeholder="분자 입력", on_change=reset_feedback).strip()
-                                st.markdown('<div class="fraction-line"></div>', unsafe_allow_html=True)
-                                user_den = st.text_input("🟦 분모", key=f"q_{q['id']}_den", placeholder="분모 입력", on_change=reset_feedback).strip()
-                            user_answers[q['id']] = f"{user_nat}|{user_num}|{user_den}"
+                            st.caption("👉 정답을 분수 형태로 입력하세요. (가분수/진분수는 자연수 칸 비움)")
+                            f_cols = st.columns(num_ans)
+                            ans_parts = []
+                            for i in range(num_ans):
+                                with f_cols[i]:
+                                    if num_ans > 1: st.write(f"**정답 {i+1}**")
+                                    c_nat, c_frac = st.columns([1, 2])
+                                    with c_nat: 
+                                        u_nat = st.text_input("🟩자연수" if num_ans==1 else "자연수", key=f"q_{q['id']}_{i}_nat", on_change=reset_feedback).strip()
+                                    with c_frac: 
+                                        u_num = st.text_input("🟥분자" if num_ans==1 else "분자", key=f"q_{q['id']}_{i}_num", on_change=reset_feedback).strip()
+                                        st.markdown('<div class="fraction-line"></div>', unsafe_allow_html=True)
+                                        u_den = st.text_input("🟦분모" if num_ans==1 else "분모", key=f"q_{q['id']}_{i}_den", on_change=reset_feedback).strip()
+                                    ans_parts.append(f"{u_nat}|{u_num}|{u_den}")
+                            user_answers[q['id']] = "||".join(ans_parts)
                             
                         elif q.get('type') == 'blank':
-                            num_ans = q.get('num_ans', 1)
                             cols = st.columns(num_ans)
                             ans_parts = [cols[i].text_input(f"답 {i+1}:", key=f"q_{q['id']}_{i}", on_change=reset_feedback).strip() for i in range(num_ans)]
                             user_answers[q['id']] = "|".join(ans_parts)
@@ -341,7 +321,7 @@ if menu == "✍️ 학생 문제 풀기":
                                 q_match_type = q.get('match_type', 'exact')
                                 if is_correct(ans, q.get('answer', ''), q_match_type):
                                     st.success("⭕ 정답입니다!")
-                                elif q_match_type == 'fraction' and not ans.replace("|", "").strip():
+                                elif q_match_type == 'fraction' and not ans.replace("|", "").replace("||", "").strip():
                                     st.error("❌ 문제를 풀지 않았습니다!")
                                 elif q_match_type != 'fraction' and not ans.replace("|", "").strip():
                                     st.error("❌ 문제를 풀지 않았습니다!")
@@ -354,7 +334,7 @@ if menu == "✍️ 학생 문제 풀기":
                     
                     if st.button("💾 제출 및 진도 저장하기", type="primary"):
                         if teacher_pwd == "0094":
-                            answered_ids = [q['id'] for q in problem_qs if user_answers.get(q['id'], "").replace("|", "").strip() or st.session_state.get(f"skip_{q['id']}")]
+                            answered_ids = [q['id'] for q in problem_qs if user_answers.get(q['id'], "").replace("|", "").replace("||", "").strip() or st.session_state.get(f"skip_{q['id']}")]
                             if not answered_ids:
                                 st.warning("⚠️ 풀이한 문제가 없습니다!")
                             else:
@@ -425,8 +405,8 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
         work_mode = st.radio("어떤 방식으로 자르시겠습니까?", ["🎛️ 슬라이더 조절 (기존 안전모드)", "🖱️ 그림판 마우스 드래그 모드"])
         
         edit_col1, edit_col2, edit_col3 = st.columns(3)
-        with edit_col1: test_grade = st.selectbox("학년", [1, 2, 3, 4, 5, 6], index=3)
-        with edit_col2: test_semester = st.selectbox("학기", [1, 2], index=0)
+        with edit_col1: test_grade = st.selectbox("학년", [1, 2, 3, 4, 5, 6], index=5)
+        with edit_col2: test_semester = st.selectbox("학기", [1, 2], index=1)
         with edit_col3: test_subject = st.selectbox("과목", ["국어", "수학", "사회", "과학", "영어"], index=1)
             
         test_pdf_key = f"{test_grade}_{test_semester}_{test_subject}"
@@ -472,8 +452,6 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
             
             if target_type != "concept":
                 st.markdown("---")
-                
-                # 🌟 [추가됨] 선생님 분수 모드 선택
                 scoring_mode = st.radio("🎯 채점 방식 선택", ["💯 정확히 일치 (수학/단답)", "📝 키워드 포함 (국어 서술형)", "🔢 분수 입력 (수학 5~6학년)"])
                 match_type = "keyword" if "키워드" in scoring_mode else ("fraction" if "분수" in scoring_mode else "exact")
                 
@@ -481,20 +459,30 @@ elif menu == "🛠️ [선생님 전용] 그림 자르기 조절기":
                     num_ans = 1
                     custom_answer = st.text_input("🔑 정답 키워드 뭉치 입력:", value=existing_q.get('answer', '') if existing_q else "")
                 
+                # 🌟 [선생님용] 분수 여러 개 입력 설정 UI
                 elif match_type == "fraction":
+                    num_ans = st.number_input("정답 칸 개수 (분수 세트 수)", min_value=1, max_value=5, value=existing_q.get('num_ans', 1) if existing_q else 1)
                     st.info("💡 대분수면 세 칸을 모두 채우고, 진분수나 가분수면 [자연수] 칸을 비워두세요!")
-                    ans_cols = st.columns(3)
-                    exist_ans_parts = default_ans.split("|") if default_ans and "|" in default_ans else ["", "", ""]
-                    if len(exist_ans_parts) != 3: exist_ans_parts = ["", "", ""]
                     
-                    with ans_cols[0]: ans_nat = st.text_input("🔑 자연수 (없으면 비움)", value=exist_ans_parts[0])
-                    with ans_cols[1]: ans_num = st.text_input("🔑 분자", value=exist_ans_parts[1])
-                    with ans_cols[2]: ans_den = st.text_input("🔑 분모", value=exist_ans_parts[2])
-                    custom_answer = f"{ans_nat}|{ans_num}|{ans_den}"
-                    num_ans = 1
+                    ans_sets = default_ans.split("||") if default_ans else []
+                    custom_answers_list = []
+                    
+                    for i in range(num_ans):
+                        st.write(f"**🔑 분수 정답 {i+1}**")
+                        ans_cols = st.columns(3)
+                        part = ans_sets[i] if i < len(ans_sets) else ""
+                        parts = part.split("|") if "|" in part else ["", "", ""]
+                        if len(parts) != 3: parts = ["", "", ""]
+                        
+                        with ans_cols[0]: ans_nat = st.text_input(f"자연수", value=parts[0], key=f"a_{i}_nat")
+                        with ans_cols[1]: ans_num = st.text_input(f"분자", value=parts[1], key=f"a_{i}_num")
+                        with ans_cols[2]: ans_den = st.text_input(f"분모", value=parts[2], key=f"a_{i}_den")
+                        custom_answers_list.append(f"{ans_nat}|{ans_num}|{ans_den}")
+                        
+                    custom_answer = "||".join(custom_answers_list)
                     
                 else:
-                    num_ans = st.number_input("정답 칸 개수 (학생에게 보여줄 빈칸 수)", min_value=1, max_value=4, value=existing_q.get('num_ans', 1) if existing_q else 1)
+                    num_ans = st.number_input("정답 칸 개수 (학생에게 보여줄 빈칸 수)", min_value=1, max_value=5, value=existing_q.get('num_ans', 1) if existing_q else 1)
                     ans_cols = st.columns(num_ans)
                     custom_answers_list = []
                     exist_ans_parts = default_ans.split("|") if default_ans else []
