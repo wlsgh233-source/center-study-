@@ -13,7 +13,7 @@ import base64
 PDF_LINKS = {
     "4_1_수학": "18uznawqJvSEYUGOSqbW4gQ9is6jJ7iuL",  
     "6_1_수학": "여기에_6학년_1학기_수학_구글드라이브_ID를_넣으세요",
-    "6_2_수학": "11llBJBHbszhvgb7wxB2WANYkNMGaOgYK",
+    "6_2_수학": "1CGnrY-TNuRAIDPx9-D_bhPUdl3vcjqwD",
 }
 
 try:
