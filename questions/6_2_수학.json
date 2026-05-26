@@ -9,8 +9,10 @@
             19,
             79
         ],
-        "answer": "1|1|1",
-        "match_type": "fraction"
+        "answer": "1|1|1|||1|1||||1",
+        "match_type": "fraction",
+        "type": "blank",
+        "num_ans": 3
     },
     {
         "id": 100,
