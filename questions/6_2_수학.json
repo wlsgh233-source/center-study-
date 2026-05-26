@@ -1,0 +1,18 @@
+[
+    {
+        "id": 100,
+        "type": "concept",
+        "question": "1쪽 핵심 개념",
+        "page": 1,
+        "crop": [
+            5,
+            89,
+            9,
+            100
+        ],
+        "answer": "",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "exact"
+    }
+]
