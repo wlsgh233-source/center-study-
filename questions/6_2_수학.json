@@ -14,5 +14,21 @@
         "num_ans": 1,
         "options": [],
         "match_type": "exact"
+    },
+    {
+        "id": 700,
+        "type": "concept",
+        "question": "7쪽 핵심 개념",
+        "page": 7,
+        "crop": [
+            2,
+            93,
+            0,
+            95
+        ],
+        "answer": "",
+        "num_ans": 1,
+        "options": [],
+        "match_type": "exact"
     }
 ]
